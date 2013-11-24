@@ -1,0 +1,9 @@
+#!/bin/sh
+
+set -e
+
+rm -f /etc/service/"$1"
+
+svc -kx /var/lib/service/"$1" /var/lib/service/"$1"/log
+
+rm -rf /var/lib/service/"$1"

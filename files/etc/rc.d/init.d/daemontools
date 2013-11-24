@@ -1,0 +1,223 @@
+#!/bin/bash
+#
+# THIS FILE IS AUTOMATICALLY DISTRIBUTED BY PUPPET. ANY LOCAL CHANGES WILL BE OVERWRITTEN!
+#
+# Contact Anchor support for help: support@anchor.com.au or 1300 883 979 (+612 8296 5111)
+#
+# daemontools  Daemontools service manager
+#
+# chkconfig: 2345 80 20
+# description: Manages the Daemontools service manager.
+#
+### BEGIN INIT INFO
+# Provides:          daemontools
+# Required-Start:    $local_fs $remote_fs
+# Required-Stop:     $local_fs $remote_fs
+# X-Start-Before:    pacemaker
+# X-Stop-After:      pacemaker
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Daemontools service manager
+# Description:       Manages the Daemontools service manager.
+### END INIT INFO
+
+OS=unknown
+if [ -f /etc/debian_version ]; then
+	OS=debian
+elif [ -f /etc/redhat-release ]; then
+	OS=redhat
+fi
+
+PATH=/sbin:/usr/sbin:/bin:/usr/bin
+DESC="Daemontools service manager"
+NAME=daemontools
+DAEMON=/usr/bin/svscanboot
+DAEMON_ARGS=
+case "$OS" in
+debian) LOCKFILE="/var/lock/$NAME" ;;
+redhat) LOCKFILE="/var/lock/subsys/$NAME" ;;
+esac
+PIDFILE="/var/run/$NAME.pid"
+SCRIPTNAME="/etc/init.d/$NAME"
+
+case "$OS" in
+debian)
+	[ -r "/etc/default/$NAME" ] && . "/etc/default/$NAME"
+	. /lib/init/vars.sh
+	. /lib/lsb/init-functions
+	;;
+redhat)
+	. /etc/rc.d/init.d/functions
+	[ -f "/etc/sysconfig/$NAME" ] && . "/etc/sysconfig/$NAME"
+	;;
+esac
+
+# We're a no-op if daemontools is managed in /etc/inittab
+grep -q '^[ 	]*SV:' /etc/inittab 2>/dev/null && exit 0
+
+# We're a no-op if daemontools is managed in /etc/init/daemontools.conf
+[ -f /etc/init/daemontools.conf ] && exit 0
+
+running() {
+	local pid="$1"
+	[ -n "$pid" -a -z "${pid//[0-9]/}" -a -d "/proc/$pid" ]
+}
+
+start() {
+	local rc=0
+
+	case "$OS" in
+	debian)
+		[ "$VERBOSE" != no ] && log_daemon_msg "Starting $DESC" "$NAME"
+		;;
+	redhat)
+		echo -n "Starting $DESC: "
+		;;
+	esac
+
+	if [ ! -f "$LOCKFILE" ]; then
+		if [ -x "$DAEMON" ]; then
+			# svscanboot doesn't daemonize. Do it manually.
+			local pid=$(
+				cd /
+				umask 0
+				ulimit -S -c "${DAEMON_COREFILE_LIMIT:-0}"
+				( exec setsid "$DAEMON" $DAEMON_ARGS </dev/null >/dev/null 2>/dev/null ) &
+				echo "$!"
+			)
+			echo "$pid" >"$PIDFILE"
+			sleep 1
+			running "$pid" || rc=1
+		else
+			log_failure_msg "$DAEMON is not executable"
+			rc=5
+		fi
+	fi
+	[ $rc -eq 0 ] && touch "$LOCKFILE"
+
+	case "$OS" in
+	debian)
+		[ "$VERBOSE" != no ] && log_end_msg $rc
+		;;
+	redhat)
+		[ $rc -eq 0 ] && success "$NAME startup" || failure "$NAME startup"
+		echo
+		;;
+	esac
+
+	return $rc
+}
+
+stop() {
+	local rc=0
+
+	case "$OS" in
+	debian)
+		[ "$VERBOSE" != no ] && log_daemon_msg "Stopping $DESC" "$NAME"
+		;;
+	redhat)
+		echo -n "Stopping $DESC: "
+		;;
+	esac
+
+	if [ -f "$LOCKFILE" ]; then
+		local pid=$(pidofproc -p "$PIDFILE" "$NAME")
+		rc=$?
+		if [ -n "$pid" ]; then
+			# We kill off svscan, which causes svscanboot to exit.
+			pkill -TERM -P "$pid" 'svscan|readproctitle' 2>/dev/null
+			for i in 1 2 3 4 5; do
+				sleep 1
+				running "$pid" || break
+			done
+			running "$pid" && pkill -KILL -P "$pid" 'svscan|readproctitle' 2>/dev/null
+
+			# Then we ask svc to terminate all supervise processes.
+			svc -dx /etc/service/* /etc/service/*/log
+		fi
+	fi
+	[ $rc -eq 0 ] && rm -f "$LOCKFILE" "$PIDFILE"
+
+	case "$OS" in
+	debian)
+		[ "$VERBOSE" != no ] && log_end_msg $rc
+		;;
+	redhat)
+		[ $rc -eq 0 ] && success "$NAME shutdown" || failure "$NAME shutdown"
+		echo
+		;;
+	esac
+
+	return $rc
+}
+
+do_status()  {
+	local rc=0
+
+	case "$OS" in
+	debian)
+		pidofproc "$NAME" >/dev/null
+		rc=$?
+		case $rc in
+		0)
+			log_success_msg "$NAME is running"
+			;;
+		4)
+			log_failure_msg "$NAME status unknown due to insufficient privileges"
+			;;
+		*)
+			if [ -f "$LOCKFILE" ]; then
+				echo "$NAME dead but subsys locked"
+				rc=2
+			else
+				log_failure_msg "$NAME is not running"
+				rc=3
+			fi
+		esac
+		;;
+	redhat)
+		status -p "$PIDFILE" "$NAME"
+		rc=$?
+		;;
+	esac
+
+	return $rc
+}
+
+restart() {
+	stop
+	start
+}
+
+condrestart() {
+	local rc=0
+
+	if do_status >/dev/null; then
+		restart
+		rc=$?
+	fi
+
+	return $rc
+}
+
+case "$1" in
+start|stop)
+	"$1"
+	;;
+status)
+	do_status
+	;;
+restart|force-reload)
+	restart
+	;;
+condrestart|try-restart)
+	condrestart
+	;;
+reload)
+	:
+	;;
+*)
+	echo "Usage: $SCRIPTNAME { start | stop | status | restart | reload | force-reload | condrestart | try-restart }" >&2
+	exit 2
+	;;
+esac

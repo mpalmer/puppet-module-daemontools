@@ -1,0 +1,148 @@
+#!/usr/bin/env ruby
+
+#           THIS FILE IS AUTOMATICALLY DISTRIBUTED BY PUPPET
+#                ANY LOCAL CHANGES WILL BE OVERWRITTEN
+#
+# Contact Anchor support for help:
+#
+#     support@anchor.com.au or 1300 883 979 (+612 8296 5111)
+
+DAEMONTOOLS_BASEDIR = '/etc/service'
+
+RC_OK       = 0
+RC_WARNING  = 1
+RC_CRITICAL = 2
+RC_UNKNOWN  = 3
+
+require 'optparse'
+
+def main(argv)
+	opts = parse_opts(argv)
+
+	svc_name = ARGV[0]
+	parse_opts(['--usage']) unless svc_name
+
+	unless File.file?('/usr/bin/svstat')
+		$stderr.puts "Daemontools not installed (could not find svstat)."
+		exit RC_UNKNOWN
+	end
+
+	if opts[:group]
+		svc_list = [ ]
+		Dir.glob("/etc/service/*") do |d|
+			next unless File.file?("#{d}/group")
+			File.open("#{d}/group", 'r') do |f|
+				svc_list.push(d) if f.gets.chomp == svc_name
+			end
+		end
+		svc_list.sort!
+
+		grp_state = svc_list.map do |s|
+			check_svc(s, opts[:crit], opts[:warn], opts[:fail])
+		end
+		status = grp_state.sort{|a,b|b[:status]<=>a[:status]}[0][:status]
+		if status != RC_OK
+			puts "#{grp_state.map{|g|g[:message] if g[:status] == status}.compact.join(', ')}."
+		else
+			puts "All services up and running."
+		end
+		exit status
+	else
+		svc_dir = "#{DAEMONTOOLS_BASEDIR}/#{svc_name}"
+		unless File.directory?("#{DAEMONTOOLS_BASEDIR}/#{svc_name}")
+			$stderr.puts "No such service: #{svc_name}."
+			exit RC_UNKNOWN
+		end
+
+		svc_state = check_svc(svc_dir, opts[:crit], opts[:warn], opts[:fail])
+
+		puts "#{svc_state[:message]}."
+		exit svc_state[:status]
+	end
+end
+
+def check_svc(svc_dir, crit, warn, on_fail)
+	svc_status = `svstat #{svc_dir}`
+	svc_state  = nil
+	svc_pid    = nil
+	svc_time   = nil
+	if svc_status =~ /^\S*: (up|down) \(pid (\d+)\) (\d+) seconds$/
+		svc_state = $1.intern
+		svc_pid   = $2.to_i
+		svc_time  = $3.to_i
+	else
+		$stderr.puts "Unable to parse output of svstat."
+		return RC_UNKNOWN
+	end
+
+	if svc_state == :up
+		svc_uptime = svc_time
+	else
+		svc_uptime = 0
+	end
+
+	status = RC_OK
+
+	if svc_uptime < crit
+		status = RC_CRITICAL
+	elsif svc_uptime < warn
+		status = RC_WARNING
+	end
+
+	# FIXME: Do something with `allah check` and on_fail here.
+
+	return {
+		:message => "#{svc_dir.sub(%r{#{Regexp.escape(DAEMONTOOLS_BASEDIR)}/},'')} has been #{svc_state} for #{svc_time} seconds",
+		:status  => status
+	}
+end
+
+def parse_opts(args)
+	opts = {
+		:warn  => 0,
+		:crit  => 0,
+		:fail  => :ignore,
+		:group => false
+	}
+
+	parser = OptionParser.new
+
+	parser.banner = "Usage: #{File.basename($0)} [options] service_name"
+	parser.separator ''
+	parser.separator 'Available options:'
+	parser.separator ''
+	parser.on('-w', '--warning-threshold SECONDS',
+	          'If the process has been up for less than this, return WARNING.') {|v| opts[:warn] = v.to_i}
+	parser.on('-c', '--critical-threshold SECONDS',
+	          'If the process has been up for less than this, return CRITICAL.') {|v| opts[:crit] = v.to_i}
+	parser.on('-f', '--on-fail ACTION',
+	          'If an `allah check` fails, return this status (ignore, warn or crit)') do |v|
+		case v
+			when /^ign/
+				opts[:fail] = :ignore
+			when /^warn/
+				opts[:fail] = :warn
+			when /^crit/
+				opts[:fail] = :crit
+			else
+				parse_opts(['--usage'])
+				return 1
+		end
+	end
+	parser.on('-g', '--group',
+	          'Check an allah group instead of a single service.') {opts[:group] = true}
+	parser.on('-h', '-?', '--help', '--usage',
+	          'Display command help') {$stderr.puts parser; exit RC_UNKNOWN}
+
+	parser.parse!(args)
+
+	opts
+end
+
+begin
+	exit! main(ARGV) if $0 == __FILE__
+rescue => e
+	$stderr.puts "#{e.backtrace.first}: #{e} (#{e.class})"
+	$stderr.puts e.backtrace.map{|l|"   from #{l}"}.join("\n")
+	exit! RC_UNKNOWN
+end

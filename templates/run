@@ -1,0 +1,26 @@
+#!/bin/sh
+
+#              THIS FILE IS AUTOMATICALLY DISTRIBUTED BY PUPPET.
+#                   ANY LOCAL CHANGES WILL BE OVERWRITTEN!
+
+exec 2>&1
+
+cd <%= @daemontools_service_directory %> || exit 1
+
+<% @daemontools_service_environment.each do |k, v| -%>
+export <%= k %>='<%= v.gsub("'", "'\\\\''") %>'
+<% end -%>
+
+<% if @daemontools_service_umask -%>
+umask <%= @daemontools_service_umask %>
+<% end -%>
+
+<% @daemontools_service_ulimits.each do |u| -%>
+ulimit <%= u %>
+<% end -%>
+
+<% @daemontools_service_pre_commands.each do |c| -%>
+<%= c %>
+<% end -%>
+
+exec <%= @daemontools_service_uidgid %> <%= @daemontools_service_user %> <%= @daemontools_service_command %>
