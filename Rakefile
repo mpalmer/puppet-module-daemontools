@@ -10,7 +10,7 @@ end
 desc "Run guard"
 task :guard do
 	require 'guard'
-	::Guard.start(:clear => true, :debug => true)
+	::Guard.start(:clear => true, :no_interactions => true)
 	while ::Guard.running do
 		sleep 0.5
 	end
