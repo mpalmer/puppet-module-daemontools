@@ -20,7 +20,7 @@ class daemontools::base {
 			mode   => 0555;
 	}
 
-	stdlib::initscript { "daemontools":
+	libwomble::initscript { "daemontools":
 		source => "puppet:///modules/daemontools/etc/rc.d/init.d/daemontools",
 		before => Noop["daemontools/configured"];
 	}

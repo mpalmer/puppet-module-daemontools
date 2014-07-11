@@ -1,10 +1,10 @@
-mod 'allah',
+mod 'anchor/allah',
     :git => "git://github.com/anchor/allah",
     :ref => "puppet/v1"
 
-mod 'stdlib',
-    :git => "git://github.com/anchor/puppet-module-stdlib",
-    :ref => "2.x"
+mod 'mpalmer/libwomble',
+    :git => "git://github.com/mpalmer/puppet-module-libwomble",
+    :ref => "v1"
 
-mod 'sudo',
+mod 'anchor/sudo',
     :git => "git://github.com/anchor/puppet-module-sudo"
