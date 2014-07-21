@@ -526,7 +526,7 @@ define daemontools::service(
 			$ulimit_l = []
 		}
 
-		$daemontools_service_ulimits = concat($ulimit_d, $ulimit_s, $ulimit_n, $ulimit_u, $ulimit_f, $ulimit_c, $ulimit_m, $ulimit_t, $ulimit_v, $ulimit_l)
+		$daemontools_service_ulimits = womble_concat($ulimit_d, $ulimit_s, $ulimit_n, $ulimit_u, $ulimit_f, $ulimit_c, $ulimit_m, $ulimit_t, $ulimit_v, $ulimit_l)
 
 		#######################################################################
 		# INITIALIZATION COMMANDS
