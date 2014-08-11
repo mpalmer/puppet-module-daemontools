@@ -2,6 +2,11 @@
 
 set -e
 
+if [ -z "$1" ]; then
+	echo "Usage: $0 <service>" >&2
+	exit 1
+fi
+
 rm -f /etc/service/"$1"
 
 svc -kx /var/lib/service/"$1" /var/lib/service/"$1"/log
