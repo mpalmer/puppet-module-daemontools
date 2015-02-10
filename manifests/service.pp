@@ -382,7 +382,7 @@ define daemontools::service(
 
 		if $allah_group {
 			file { "/var/lib/service/${name}/group":
-				content => join(maybe_split($allah_group, '[\s,]+'), " "),
+				content => join(maybe_split($allah_group, '[\s,]+'), "\n"),
 				mode    => 0444;
 			}
 		}
