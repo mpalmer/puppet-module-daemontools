@@ -16,8 +16,10 @@ class daemontools::base {
 			require => Package["daemontools"],
 			before  => Noop["daemontools/installed"];
 		"/usr/local/sbin/purge_daemontools_service":
-			source => "puppet:///modules/daemontools/usr/local/sbin/purge_daemontools_service",
-			mode   => 0555;
+			source  => "puppet:///modules/daemontools/usr/local/sbin/purge_daemontools_service",
+			mode    => 0555,
+			owner   => "root",
+			group   => "root";
 	}
 
 	libwomble::initscript { "daemontools":
