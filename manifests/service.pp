@@ -300,11 +300,13 @@ define daemontools::service(
 		# How do we go about dropping privs?
 		if $use_secondary_groups {
 			if $setuid {
-				$daemontools_service_uidgid = "su"
+				$daemontools_service_uidgid  = "su"
+				$daemontools_service_command = shellquote("-c", $command)
 			} else {
 				fail("Cannot use use_secondary_groups without setuid")
 			}
 		} else {
+			$daemontools_service_command = $command
 			if $setuid {
 				$daemontools_service_uidgid = "setuidgid"
 			} else {
@@ -538,7 +540,6 @@ define daemontools::service(
 		}
 
 		# Straightforward pass-through variables
-		$daemontools_service_command     = $command
 		$daemontools_service_environment = $environment
 		$daemontools_service_umask       = $umask
 		
