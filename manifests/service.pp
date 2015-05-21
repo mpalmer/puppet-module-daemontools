@@ -301,7 +301,7 @@ define daemontools::service(
 		if $use_secondary_groups {
 			if $setuid {
 				$daemontools_service_uidgid  = "su"
-				$daemontools_service_command = shellquote("-c", $command)
+				$daemontools_service_command = shellquote("-l", "-c", $command)
 			} else {
 				fail("Cannot use use_secondary_groups without setuid")
 			}
