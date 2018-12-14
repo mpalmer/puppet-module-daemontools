@@ -12,12 +12,12 @@ class daemontools::base {
 			"/var/lib/service",
 		]:
 			ensure  => directory,
-			mode    => 0751,
+			mode    => "0751",
 			require => Package["daemontools"],
 			before  => Noop["daemontools/installed"];
 		"/usr/local/sbin/purge_daemontools_service":
 			source  => "puppet:///modules/daemontools/usr/local/sbin/purge_daemontools_service",
-			mode    => 0555,
+			mode    => "0555",
 			owner   => "root",
 			group   => "root";
 	}

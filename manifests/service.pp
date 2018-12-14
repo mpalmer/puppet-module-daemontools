@@ -385,7 +385,7 @@ define daemontools::service(
 		if $allah_group {
 			file { "/var/lib/service/${name}/group":
 				content => join(maybe_split($allah_group, '[\s,]+'), "\n"),
-				mode    => 0444;
+				mode    => "0444";
 			}
 		}
 		
@@ -401,7 +401,7 @@ define daemontools::service(
 			file { "/var/lib/service/${name}/log/logs":
 				ensure  => directory,
 				owner   => $user,
-				mode    => 0750,
+				mode    => "0750",
 				require => Noop["daemontools/installed"];
 			}
 
@@ -547,14 +547,14 @@ define daemontools::service(
 		file {
 			[ "/var/lib/service/${name}", "/var/lib/service/${name}/supervise" ]:
 				ensure  => directory,
-				mode    => 0755,
+				mode    => "0755",
 				require => Noop["daemontools/installed"],
 				before  => Noop["daemontools/configured:${name}"];
 		}
 		
 		file { "/var/lib/service/${name}/run":
 			content => template("daemontools/run"),
-			mode    => 0555,
+			mode    => "0555",
 			require => Noop["daemontools/installed"],
 			before  => Noop["daemontools/configured:${name}"];
 		}
